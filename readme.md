@@ -1,16 +1,9 @@
-# Three.js Journey
+<p align="center">
+  <a href="https://portal.kana.jetzt/">
+    <img alt="Portal Scene Screenshot" src="https://res.cloudinary.com/kana/image/upload/v1625042168/portalScene10_Live_mf4ktt.png" width="1369" />
+  </a>
+</p>
 
-## Setup
-Download [Node.js](https://nodejs.org/en/download/).
-Run this followed commands:
-
-``` bash
-# Install dependencies (only the first time)
-npm install
-
-# Run the local server at localhost:8080
-npm run dev
-
-# Build for production in the dist/ directory
-npm run build
-```
+<h1 align="center">
+  <a href="https://portal.kana.jetzt/">Portal Scene</a>
+</h1>
