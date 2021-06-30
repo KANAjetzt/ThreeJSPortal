@@ -16,6 +16,7 @@ import grassModelFragmentShader from "./shaders/grassModel/fragment.glsl";
 import groundVertexShader from "./shaders/ground/vertex.glsl";
 import groundFragmentShader from "./shaders/ground/fragment.glsl";
 import { addGrass, customUniforms } from "./grass";
+import { localToWorld } from "./utils/localToWorld";
 
 /**
  * Base
@@ -53,6 +54,9 @@ const bakedTexture = textureLoader.load("baked.jpg");
 bakedTexture.flipY = false;
 bakedTexture.encoding = THREE.sRGBEncoding;
 
+const groundMaskTexture = textureLoader.load("groundMask.jpg");
+groundMaskTexture.flipY = false;
+
 /**
  * Materials
  */
@@ -62,6 +66,7 @@ const depthMaterial = new THREE.MeshDepthMaterial();
 // Baked material
 const bakedMaterial = new THREE.MeshBasicMaterial({
   map: bakedTexture,
+  wireframe: false,
 });
 
 debugObject.portalColorStart = "#18c0b2";
@@ -97,6 +102,7 @@ debugObject.grassColor = "#00ffff";
 
 const grassModelMaterial = new THREE.ShaderMaterial({
   uniforms: {
+    uGroundMask: { value: groundMaskTexture },
     uGrassColor: { value: new THREE.Color(debugObject.grassColor) },
   },
   vertexShader: grassModelVertexShader,
@@ -110,17 +116,63 @@ grassModelMaterial.uniforms.uWindDensity = customUniforms.uWindDensity;
 grassModelMaterial.uniforms.uWindStrength = customUniforms.uWindStrength;
 
 /**
+ * Ground plane
+ */
+
+// Geometry
+const groundGeometry = new THREE.PlaneGeometry(4, 4, 1, 1);
+
+const groundMaterial = new THREE.ShaderMaterial({
+  uniforms: {
+    uGroundMask: { value: groundMaskTexture },
+    uColor: { value: new THREE.Color(debugObject.grassColor) },
+  },
+  vertexShader: groundVertexShader,
+  fragmentShader: groundFragmentShader,
+  side: THREE.DoubleSide,
+});
+
+const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+ground.rotation.set(-(Math.PI * 0.5), 0, 0);
+ground.position.set(0, 0.001, 0);
+
+scene.add(ground);
+
+// Debug
+gui.addColor(debugObject, "grassColor").onChange(() => {
+  grassModelMaterial.uniforms.uGrassColor.value.set(debugObject.grassColor);
+  groundMaterial.uniforms.uColor.value.set(debugObject.grassColor);
+});
+
+/**
  * Modals
  */
 
 // Load Portal Scene
 gltfLoader.load("portal.glb", (gltf) => {
-  console.log(gltf);
   // gltf.scene.traverse((child) => {
   //   child.material = bakedMaterial;
   // });
 
   const bakedMesh = gltf.scene.children.find((child) => child.name === "baked");
+
+  const bakedMeshWorldPos = localToWorld(bakedMesh);
+
+  let groundPositions = [];
+
+  for (let i = 0; i < bakedMeshWorldPos.length / 3; i++) {
+    const i3 = i * 3;
+
+    const x = bakedMeshWorldPos[i3 + 0];
+    const y = bakedMeshWorldPos[i3 + 1];
+    const z = bakedMeshWorldPos[i3 + 2];
+
+    if (y < 0) {
+      groundPositions = [...groundPositions, new THREE.Vector3(x, y, z)];
+    }
+  }
+
+  console.log(groundPositions);
 
   const portalLightMesh = gltf.scene.children.find(
     (child) => child.name === "portalLight"
@@ -143,6 +195,7 @@ gltfLoader.load("portal.glb", (gltf) => {
 // Load Grass Model
 gltfLoader.load("grass2.glb", (gltf) => {
   const grassModel = gltf.scene.children[0];
+
   console.log(grassModel);
   grassModel.material = grassModelMaterial;
 
@@ -151,36 +204,18 @@ gltfLoader.load("grass2.glb", (gltf) => {
   grassModel.updateWorldMatrix();
 
   // Convert local vectors to world vectors
-  const grassModelWorldPosition = new Float32Array(
-    grassModel.geometry.attributes.position.array.length
-  );
-
-  for (
-    let i = 0;
-    i < grassModel.geometry.attributes.position.array.length / 3;
-    i++
-  ) {
-    const i3 = i * 3;
-
-    // create vector 3 from position attributes
-    const localVector = new THREE.Vector3(
-      grassModel.geometry.attributes.position.array[i3 + 0],
-      grassModel.geometry.attributes.position.array[i3 + 1],
-      grassModel.geometry.attributes.position.array[i3 + 2]
-    );
-
-    // convert the vector to world space
-    const globalVector = grassModel.localToWorld(localVector);
-
-    // add the vector data in to a new array
-    grassModelWorldPosition[i3 + 0] = globalVector.x;
-    grassModelWorldPosition[i3 + 1] = globalVector.y;
-    grassModelWorldPosition[i3 + 2] = globalVector.z;
-  }
+  const grassWorldPosition = localToWorld(grassModel);
 
   grassModel.geometry.setAttribute(
     "aWorldPosition",
-    new THREE.BufferAttribute(grassModelWorldPosition, 3)
+    new THREE.BufferAttribute(grassWorldPosition, 3)
+  );
+
+  const groundPlaneWorldPosition = localToWorld(ground);
+
+  grassModel.geometry.setAttribute(
+    "aGroundPlaneWorldPosition",
+    new THREE.BufferAttribute(groundPlaneWorldPosition, 3)
   );
 
   debugObject.grassCount = 50000;
@@ -297,32 +332,6 @@ scene.add(fireflies);
  * Grass
  */
 addGrass(0);
-
-/**
- * New ground plane
- */
-
-// Geometry
-const groundGeometry = new THREE.PlaneGeometry(4, 4, 1, 1);
-
-const groundMaterial = new THREE.ShaderMaterial({
-  uniforms: {
-    uColor: { value: new THREE.Color(debugObject.grassColor) },
-  },
-  vertexShader: groundVertexShader,
-  fragmentShader: groundFragmentShader,
-});
-
-const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-ground.rotation.set(-(Math.PI * 0.5), 0, 0);
-ground.position.set(0, 0.0001, 0);
-scene.add(ground);
-
-// Debug
-gui.addColor(debugObject, "grassColor").onChange(() => {
-  grassModelMaterial.uniforms.uGrassColor.value.set(debugObject.grassColor);
-  groundMaterial.uniforms.uColor.value.set(debugObject.grassColor);
-});
 
 /**
  * Sizes

@@ -1,4 +1,5 @@
 attribute vec3 aWorldPosition;
+attribute vec3 aGroundPlaneWorldPosition;
 
 uniform float uTime;
 uniform float uWindDensity;
@@ -7,6 +8,8 @@ uniform vec2 uWindMovement;
 
 varying float vWindNoise;
 varying vec2 vUv;
+varying vec2 vWorldUv;
+varying vec3 vGroundPlaneWorldPosition;
 varying vec4 vNewLocalPosition;
 
 //	Classic Noise 
@@ -52,7 +55,7 @@ float noise2d(vec2 P){
 
 void main() {
 
-   vec4 instancedPosition = instanceMatrix * vec4(aWorldPosition, 1.0);
+  vec4 instancedPosition = instanceMatrix * vec4(aWorldPosition, 1.0);
 
   vec2 worldUv = instancedPosition.xy;
 
@@ -92,4 +95,6 @@ void main() {
   vNewLocalPosition = newLocalPosition;
   vWindNoise = windNoise;
   vUv = uv;
+  vWorldUv = instancedPosition.xz;
+  vGroundPlaneWorldPosition = aGroundPlaneWorldPosition;
 }

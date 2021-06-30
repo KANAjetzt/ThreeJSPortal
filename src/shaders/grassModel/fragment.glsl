@@ -1,7 +1,10 @@
 uniform vec3 uGrassColor;
+uniform sampler2D uGroundMask;
 
 varying float vWindNoise;
 varying vec2 vUv;
+varying vec2 vWorldUv;
+varying vec3 vGroundPlaneWorldPosition;
 varying vec4 vNewLocalPosition;
 
 float luma(vec3 color) {
@@ -50,11 +53,31 @@ vec4 dither4x4(vec2 position, vec4 color) {
 
 void main() {
 
+  // flip texture
+  vec2 newUv = vWorldUv;
+  newUv = 1.0 - newUv;
+
+  // Offset UV
+  newUv += 1.0;
   
+  // scale UV
+  newUv *= 0.25;
+
+  vec4 groundMask = texture2D(uGroundMask, newUv);
+
+  if(groundMask.r <= 0.15) {
+    discard;
+  }
 
   // vec4 testColor = vNewLocalPosition;
   // vec4 testColor = vec4(vNewLocalPosition.y,vNewLocalPosition.y,vNewLocalPosition.y, 1.0);
   // vec4 testColor = vec4(vWindNoise, vWindNoise, vWindNoise, 1.0);
+  // vec4 testColor = vec4(vWorldUv, 0.0, 1.0);
+  // vec4 testColor = vec4(vGroundPlaneUv, 0.0, 1.0);
+  vec4 testColor = vec4(newUv, 0.0, 1.0);
+  // vec4 testColor = vec4(vGroundPlaneWorldPosition.xz, 0.0, 1.0);
+  // vec4 testColor = vec4(groundMask.rrr, 1.0);
+  
 
 
   vec4 baseColor = vec4(vUv.y * uGrassColor.r, vUv.y * uGrassColor.g,vUv.y * uGrassColor.b, 1.0);
